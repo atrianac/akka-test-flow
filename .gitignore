@@ -1,0 +1,11 @@
+.DS_Store
+**.iml
+*.vlt 
+.idea
+.classpath
+.project
+.settings
+.target
+.springBeans
+bin
+target
