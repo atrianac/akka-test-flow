@@ -9,3 +9,7 @@
 .springBeans
 bin
 target
+.metadata
+.recommenders
+.cache-main
+.cache-tests

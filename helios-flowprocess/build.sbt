@@ -6,6 +6,7 @@ scalaVersion := "2.11.7"
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
 libraryDependencies += "com.amazonaws" % "amazon-sqs-java-messaging-lib" % "1.0.0"
+libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.10.20"
 
 libraryDependencies ++= {
   val akkaV       = "2.3.12"
