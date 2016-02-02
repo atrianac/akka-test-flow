@@ -5,25 +5,47 @@ import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.model.GetObjectRequest
 import akka.stream.io.InputStreamSource
+import com.amazonaws.auth.ClasspathPropertiesFileCredentialsProvider
+import com.amazonaws.services.s3.model.S3Object
+import akka.stream.scaladsl.Source
+import scala.concurrent.Future
+import java.io.InputStream
+import akka.util.ByteString
+import akka.actor.ActorLogging
 
-case class InitDownload(pathFile: String)
 
-class DownloadResourceActor extends Actor {
+object DownloadResourceActor {
+  case class InitDownload(message: S3Message)
+  case class NotifyStream(stream: Source[ByteString, Future[Long]])
   
-  val accessKey = "AKIAJJS5V3RKWGHMET6Q";
+  class S3Message(val bucketName: String, val key: String)
+    
+}
+
+class DownloadResourceActor extends Actor with ActorLogging {
   
-  val secretKey = "vOHF5EGXG37tO9Ph8D09pZ3S+mAUIiEvtoqBIvXR";
+  import DownloadResourceActor._
+  
+  val chunk = 128
   
   def receive = {
-    case InitDownload(pathFile) => {
-       val s3Object = s3Client.getObject(new GetObjectRequest("pablo-proto-akka-dictionaries", pathFile));
-       val objectContent = s3Object.getObjectContent();
+    
+    case InitDownload(message) => {
        
-       val fileStream = InputStreamSource(() => objectContent, 128).map { x => ??? };
+       val objectContent = getS3ObjectAsInputStream(getS3Object(message.bucketName, message.key))
+       val stream =  getS3AsStream(objectContent)
+       
+       sender ! NotifyStream(stream)
 
     }
   }
   
-  lazy val s3Client = new AmazonS3Client(new BasicAWSCredentials(accessKey, secretKey))
+  def getS3AsStream(in: InputStream) = InputStreamSource(() => in, chunk)
+  
+  def getS3ObjectAsInputStream(s3Object: S3Object) = s3Object.getObjectContent
+  
+  def getS3Object(bucketName: String, key: String) = s3Client.getObject(new GetObjectRequest(bucketName, key))
+  
+  lazy val s3Client = new AmazonS3Client(new ClasspathPropertiesFileCredentialsProvider)
   
 }

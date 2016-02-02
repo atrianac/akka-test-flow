@@ -2,22 +2,28 @@ package com.helios.flow.actors
 
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
 import com.amazonaws.auth.ClasspathPropertiesFileCredentialsProvider
-import com.amazonaws.regions.Region
-import com.amazonaws.regions.Regions
+import com.amazonaws.regions.{Region, Regions}
 import com.helios.flow.actors.MessageConversion.convertMessage
+import akka.actor.{Actor, Props, actorRef2Scala}
+import javax.jms.{Message, Queue, Session, TextMessage}
+import akka.actor.ActorLogging
 
-import akka.actor.Actor
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import javax.jms.Message
-import javax.jms.Queue
-import javax.jms.Session
-import javax.jms.TextMessage
 
-case class InitListening(queueName: String)
-case class IncomingMessage(message: Message)
+object MessageStatus extends Enumeration {
+  val Sucess, Error = Value
+}
 
-class MessageReceiverActor extends Actor {
+object MessageReceiverActor {
+  case class InitListening(queueName: String)
+  case class IncomingMessage(message: Message)
+  case class Acknowledge(status: MessageStatus.Value)  
+}
+
+
+class MessageReceiverActor extends Actor with ActorLogging {
+  
+  import MessageReceiverActor._
+  import DownloadResourceActor._
   
   val downloadResource = context.actorOf(Props[DownloadResourceActor])
   
@@ -29,12 +35,17 @@ class MessageReceiverActor extends Actor {
       val messageConsumer = createConsumer(queue, sqsSession)
       
       messageConsumer.setMessageListener((message: Message) => self ! IncomingMessage(message))
+      sender() ! Acknowledge(MessageStatus.Sucess)
     }
     
     case IncomingMessage(message: TextMessage) => {
-      downloadResource ! InitDownload(message.getText)
+      downloadResource ! InitDownload(new S3Message("", ""))
     }
+    
+    case _ => log.debug("Message not supported")
   }
+  
+  def getS3Message(message: TextMessage) = message.getText
   
   private def createConsumer(queue: Queue, session: Session) = session.createConsumer(queue)
   
